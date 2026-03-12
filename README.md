@@ -52,9 +52,39 @@ All durations are configurable in `appsettings.json` without recompiling:
   "ItemUrl": "https://hacker-news.firebaseio.com/v0/item/{0}.json",
   "IdsCacheDurationSeconds": 300,
   "ItemSlidingExpirationSeconds": 300,
-  "ItemAbsoluteExpirationSeconds": 900
+  "ItemAbsoluteExpirationSeconds": 900,
+  "Resilience": {
+    "RetryCount": 3,
+    "RetryBaseDelaySeconds": 1,
+    "CircuitBreakerFailureRatio": 0.5,
+    "CircuitBreakerMinimumThroughput": 5,
+    "CircuitBreakerSamplingDurationSeconds": 30,
+    "CircuitBreakerBreakDurationSeconds": 15,
+    "BulkheadMaxConcurrency": 10,
+    "BulkheadQueueLimit": 20
+  }
 }
 ```
+
+## Resilience pipeline
+
+Outbound calls to Hacker News go through a three-layer pipeline defined in `Extensions/HttpClientBuilderExtensions.cs`. The layers are applied outermost-first, so each one wraps everything inside it.
+
+### Concurrency limiter (bulkhead)
+
+The outermost layer caps the number of in-flight requests to Hacker News at any point in time (`BulkheadMaxConcurrency`, default: 10). Requests that exceed that limit are queued up to `BulkheadQueueLimit` (default: 20); anything beyond the queue is rejected immediately with an exception.
+
+The reason this sits outside the retry layer is important: without it, a retry policy that fires three times per request would triple the effective concurrency against the upstream, which is exactly what a bulkhead is meant to prevent.
+
+### Retry with exponential backoff and jitter
+
+The middle layer retries on transient failures — 5xx responses, 408 Request Timeout, and network-level errors. It attempts up to `RetryCount` additional tries (default: 3) with delays that grow exponentially from `RetryBaseDelaySeconds` (default: 1 s). Jitter is added to each delay so that a burst of concurrent clients retrying at the same time does not produce a synchronized thundering-herd against a recovering upstream.
+
+### Circuit breaker
+
+The innermost layer monitors the ratio of failed calls over a rolling `CircuitBreakerSamplingDurationSeconds` window (default: 30 s). When the failure ratio reaches `CircuitBreakerFailureRatio` (default: 0.5, i.e. 50%) and at least `CircuitBreakerMinimumThroughput` calls (default: 5) have been made in that window, the circuit opens and all subsequent calls fail immediately for `CircuitBreakerBreakDurationSeconds` (default: 15 s). After the break the circuit half-opens, lets one probe request through, and closes again on success or re-opens on failure.
+
+This prevents the retry layer from continuing to hammer a struggling or down upstream during an outage. Requests fail fast while the circuit is open, which frees threads on the API side and gives Hacker News time to recover.
 
 ## Running locally
 

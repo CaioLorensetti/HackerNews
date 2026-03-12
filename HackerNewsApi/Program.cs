@@ -1,3 +1,4 @@
+using HackerNewsApi.Extensions;
 using HackerNewsApi.Options;
 using HackerNewsApi.Services;
 
@@ -6,7 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMemoryCache();
 builder.Services.Configure<HackerNewsOptions>(
     builder.Configuration.GetSection(HackerNewsOptions.SectionName));
-builder.Services.AddHttpClient<IHackerNewsService, HackerNewsService>();
+builder.Services.AddHttpClient<IHackerNewsService, HackerNewsService>()
+    .AddHackerNewsResilience();
 
 var app = builder.Build();
 

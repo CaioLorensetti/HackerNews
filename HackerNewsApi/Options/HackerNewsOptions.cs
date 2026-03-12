@@ -9,4 +9,6 @@ public sealed class HackerNewsOptions
     public int IdsCacheDurationSeconds { get; init; } = 300;
     public int ItemSlidingExpirationSeconds { get; init; } = 300;
     public int ItemAbsoluteExpirationSeconds { get; init; } = 900;
+
+    public ResilienceOptions Resilience { get; init; } = new();
 }

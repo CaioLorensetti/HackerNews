@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using HackerNewsApi.Models;
 using HackerNewsApi.Options;
@@ -22,11 +23,19 @@ public sealed class HackerNewsService(HttpClient http, IMemoryCache cache, IOpti
 
         var top = ids.Take(count);
 
-        var tasks = top.Select(id => GetStoryAsync(id, ct));
-        var stories = await Task.WhenAll(tasks);
+        var stories = new ConcurrentBag<StoryResponse>();
+        await Parallel.ForEachAsync(top, new ParallelOptions
+        {
+            MaxDegreeOfParallelism = _options.Resilience.BulkheadMaxConcurrency,
+            CancellationToken = ct,
+        }, async (id, token) =>
+        {
+            var story = await GetStoryAsync(id, token);
+            if (story is not null)
+                stories.Add(story);
+        });
 
         return stories
-            .OfType<StoryResponse>()
             .OrderByDescending(s => s.Score)
             .ToList();
     }

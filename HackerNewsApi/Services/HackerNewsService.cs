@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net.Http.Json;
+using HackerNewsApi.Diagnostics;
 using HackerNewsApi.Models;
 using HackerNewsApi.Options;
 using Microsoft.Extensions.Caching.Memory;
@@ -7,7 +8,12 @@ using Microsoft.Extensions.Options;
 
 namespace HackerNewsApi.Services;
 
-public sealed class HackerNewsService(HttpClient http, IMemoryCache cache, IOptions<HackerNewsOptions> options) : IHackerNewsService
+public sealed class HackerNewsService(
+    HttpClient http,
+    IMemoryCache cache,
+    IOptions<HackerNewsOptions> options,
+    HackerNewsMetrics metrics,
+    ILogger<HackerNewsService> logger) : IHackerNewsService
 {
     private readonly HackerNewsOptions _options = options.Value;
 
@@ -43,7 +49,15 @@ public sealed class HackerNewsService(HttpClient http, IMemoryCache cache, IOpti
     private async Task<int[]> GetBestStoryIdsAsync(CancellationToken ct)
     {
         if (cache.TryGetValue<int[]>("best_story_ids", out var cached) && cached is not null)
+        {
+            metrics.RecordCacheHit("ids");
+            logger.LogDebug("Cache hit: best story IDs.");
             return cached;
+        }
+
+        metrics.RecordCacheMiss("ids");
+        metrics.RecordUpstreamCall();
+        logger.LogDebug("Cache miss: fetching best story IDs from upstream.");
 
         var ids = await http.GetFromJsonAsync<int[]>(_options.BestStoriesUrl, ct)
             ?? Array.Empty<int>();
@@ -57,7 +71,15 @@ public sealed class HackerNewsService(HttpClient http, IMemoryCache cache, IOpti
         var cacheKey = $"story_{id}";
 
         if (cache.TryGetValue<StoryResponse>(cacheKey, out var cached))
+        {
+            metrics.RecordCacheHit("item");
+            logger.LogDebug("Cache hit: story {StoryId}.", id);
             return cached;
+        }
+
+        metrics.RecordCacheMiss("item");
+        metrics.RecordUpstreamCall();
+        logger.LogDebug("Cache miss: fetching story {StoryId} from upstream.", id);
 
         var item = await http.GetFromJsonAsync<HackerNewsItem>(
             string.Format(_options.ItemUrl, id), ct);

@@ -12,4 +12,6 @@ public sealed class ResilienceOptions
 
     public int BulkheadMaxConcurrency { get; init; } = 10;
     public int BulkheadQueueLimit { get; init; } = 20;
+
+    public double TimeoutSeconds { get; init; } = 10;
 }

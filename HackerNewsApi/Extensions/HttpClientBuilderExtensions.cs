@@ -14,6 +14,8 @@ internal static class HttpClientBuilderExtensions
             var opts = context.ServiceProvider
                 .GetRequiredService<IOptions<HackerNewsOptions>>().Value.Resilience;
 
+            pipeline.AddTimeout(TimeSpan.FromSeconds(opts.TimeoutSeconds));
+
             pipeline.AddConcurrencyLimiter(opts.BulkheadMaxConcurrency, opts.BulkheadQueueLimit);
 
             pipeline.AddRetry(new HttpRetryStrategyOptions

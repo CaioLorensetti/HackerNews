@@ -86,6 +86,18 @@ The innermost layer monitors the ratio of failed calls over a rolling `CircuitBr
 
 This prevents the retry layer from continuing to hammer a struggling or down upstream during an outage. Requests fail fast while the circuit is open, which frees threads on the API side and gives Hacker News time to recover.
 
+## Observability and back-pressure
+
+`HackerNewsMetrics` (`Diagnostics/HackerNewsMetrics.cs`) exposes three counters via `System.Diagnostics.Metrics`, tagged by `cache_type` (`ids` | `item`):
+
+- `hackernews.cache.hits` — served from cache, no upstream call made
+- `hackernews.cache.misses` — cache miss, upstream call followed
+- `hackernews.upstream.calls` — total outbound calls to Hacker News
+
+These integrate with Prometheus, Application Insights, or any OpenTelemetry exporter with no code changes. The service also emits a structured `Debug` log on every cache decision.
+
+When the pipeline rejects a call — timeout exceeded (`TimeoutSeconds`, default: 10 s), circuit open, or bulkhead queue full — the endpoint returns `503 Service Unavailable` immediately instead of queuing or propagating the exception.
+
 ## Running locally
 
 ```bash

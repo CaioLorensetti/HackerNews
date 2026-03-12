@@ -7,5 +7,6 @@ public sealed class HackerNewsOptions
     public string BestStoriesUrl { get; init; } = string.Empty;
     public string ItemUrl { get; init; } = string.Empty;
     public int IdsCacheDurationSeconds { get; init; } = 300;
-    public int ItemCacheDurationSeconds { get; init; } = 900;
+    public int ItemSlidingExpirationSeconds { get; init; } = 300;
+    public int ItemAbsoluteExpirationSeconds { get; init; } = 900;
 }

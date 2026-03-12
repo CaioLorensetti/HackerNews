@@ -11,7 +11,10 @@ public sealed class HackerNewsService(HttpClient http, IMemoryCache cache, IOpti
     private readonly HackerNewsOptions _options = options.Value;
 
     private TimeSpan IdsCacheDuration => TimeSpan.FromSeconds(_options.IdsCacheDurationSeconds);
-    private TimeSpan ItemCacheDuration => TimeSpan.FromSeconds(_options.ItemCacheDurationSeconds);
+
+    private MemoryCacheEntryOptions ItemCacheOptions => new MemoryCacheEntryOptions()
+        .SetSlidingExpiration(TimeSpan.FromSeconds(_options.ItemSlidingExpirationSeconds))
+        .SetAbsoluteExpiration(TimeSpan.FromSeconds(_options.ItemAbsoluteExpirationSeconds));
 
     public async Task<IReadOnlyList<StoryResponse>> GetBestStoriesAsync(int count, CancellationToken ct = default)
     {
@@ -54,7 +57,7 @@ public sealed class HackerNewsService(HttpClient http, IMemoryCache cache, IOpti
             return null;
 
         var story = StoryResponse.FromItem(item);
-        cache.Set(cacheKey, story, ItemCacheDuration);
+        cache.Set(cacheKey, story, ItemCacheOptions);
         return story;
     }
 }

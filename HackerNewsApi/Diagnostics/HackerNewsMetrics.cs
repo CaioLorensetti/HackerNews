@@ -6,12 +6,17 @@ public sealed class HackerNewsMetrics
 {
     public const string MeterName = "HackerNewsApi";
 
+    private static readonly string LogPath = Path.Combine("logs", "metrics.txt");
+    private static readonly Lock FileLock = new();
+
     private readonly Counter<long> _cacheHits;
     private readonly Counter<long> _cacheMisses;
     private readonly Counter<long> _upstreamCalls;
 
     public HackerNewsMetrics(IMeterFactory meterFactory)
     {
+        Directory.CreateDirectory("logs");
+
         var meter = meterFactory.Create(MeterName);
 
         _cacheHits = meter.CreateCounter<long>(
@@ -27,12 +32,28 @@ public sealed class HackerNewsMetrics
             description: "Total outbound calls to the Hacker News API.");
     }
 
-    public void RecordCacheHit(string cacheType) =>
+    public void RecordCacheHit(string cacheType)
+    {
         _cacheHits.Add(1, new KeyValuePair<string, object?>("cache_type", cacheType));
+        WriteLog($"cache.hit cache_type={cacheType}");
+    }
 
-    public void RecordCacheMiss(string cacheType) =>
+    public void RecordCacheMiss(string cacheType)
+    {
         _cacheMisses.Add(1, new KeyValuePair<string, object?>("cache_type", cacheType));
+        WriteLog($"cache.miss cache_type={cacheType}");
+    }
 
-    public void RecordUpstreamCall() =>
+    public void RecordUpstreamCall()
+    {
         _upstreamCalls.Add(1);
+        WriteLog("upstream.call");
+    }
+
+    private static void WriteLog(string message)
+    {
+        var line = $"{DateTimeOffset.UtcNow:O} {message}{Environment.NewLine}";
+        lock (FileLock)
+            File.AppendAllText(LogPath, line);
+    }
 }

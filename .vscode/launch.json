@@ -2,6 +2,22 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "HackerNewsApi (Launch)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/HackerNewsApi/bin/Debug/net10.0/HackerNewsApi.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/HackerNewsApi",
+            "stopAtEntry": false,
+            "launchSettingsFilePath": "${workspaceFolder}/HackerNewsApi/Properties/launchSettings.json",
+            "launchSettingsProfile": "http",
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(http://\\S+)"
+            }
+        },
+        {
             "name": "Launch Chrome",
             "request": "launch",
             "type": "chrome",
@@ -13,6 +29,5 @@
             "type": "coreclr",
             "request": "attach"
         }
-
     ]
 }
